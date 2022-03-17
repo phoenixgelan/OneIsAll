@@ -1,0 +1,21 @@
+.zztree {
+    width: 100%;
+
+    ul,
+    li {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    ul.zztree-node {
+        & > li {
+            padding-left: 18px;
+        }
+    }
+
+    .zztree-node .zztree-node-name,
+    .zztree-node-no-children {
+        display: flex;
+    }
+}
