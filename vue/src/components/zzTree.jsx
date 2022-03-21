@@ -11,19 +11,25 @@ export default {
         }
     },
     render(h, ctx) {
-        debugger
+        if (this.$props.treeData[0].name === 'test') {
+            return (
+                <div class="zztree">
+                    {
+                        this.$props.treeData.map(node => {
+                            const nodeData = {
+                                props: node
+                            }
+                            return <zzTreeNode {...{ props: { node } }}></zzTreeNode>
+                        })
+                    }
+                </div>
+            )
+        } else {
+            return (
+                <div>test</div>
+            )
+        }
 
-        return (
-            <div class="zztree">
-                {
-                    this.$props.treeData.map(node => {
-                        const nodeData = {
-                            props: node
-                        }
-                        return <zzTreeNode {...{ props: { node } }}></zzTreeNode>
-                    })
-                }
-            </div>
-        )
+
     }
 }

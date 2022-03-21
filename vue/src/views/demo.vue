@@ -1,15 +1,15 @@
 <template>
 <div>
-  <h1>tree</h1>
+  <!-- <h1>tree</h1> -->
   <!-- <icon /> -->
   <div id="container">
-      <zzTree :treeData="simpleTreeData">
+    <zzTree :treeData="replaceFieldsData"
+            :config="config">
           <div slot="icon">
             <icon />
           </div>
       </zzTree>
   </div>
-  
 </div>
 </template>
 <script>
@@ -26,9 +26,19 @@ export default {
   },
   data() {
     return {
+      config: {
+        checkable: true,
+        replaceFields: {
+          name: 'title',
+          id: 'nodeId',
+          children: 'subItems'
+        },
+      },
+
       simpleTreeData: [
         {
           name: '水果',
+          label: 'test',
           id: '1',
           children: [
             {
@@ -75,11 +85,62 @@ export default {
             }
           ]
         }
+      ],
+      replaceFieldsData: [
+                {
+          title: '水果',
+          label: 'test',
+          nodeId: '1',
+          subItems: [
+            {
+              title: '热带水果',
+              nodeId: '1-1',
+              subItems: [
+                  {
+                      title: '菠萝',
+                      nodeId: '1-1-1'
+                  },
+                  {
+                      title: '凤梨',
+                      nodeId: '1-1-2'
+                  }
+              ]
+            },
+            {
+              title: '温带水果',
+              nodeId: '1-2',
+              subItems: [
+                  {
+                      title: '苹果',
+                      nodeId: '1-2-1'
+                  },
+                  {
+                      title: '杏子',
+                      nodeId: '1-2-2'
+                  }
+              ]
+            }
+          ]
+        },
+        {
+          title: '服装',
+          nodeId: '2',
+          subItems: [
+            {
+              title: '上衣',
+              nodeId: '2-1'
+            },
+            {
+              title: '裤子',
+              nodeId: '2-2'
+            }
+          ]
+        }
       ]
     };
   },
   methods: {
-  
+
   },
 };
 </script>
