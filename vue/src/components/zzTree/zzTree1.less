@@ -1,0 +1,199 @@
+@primaryBlue: #1890FF;
+@primaryWhite: #FFF;
+@primaryBlack: rgba(0, 0, 0, .6);
+@lightBlue: #bae7ff;
+
+@treeNodePaddingLeft: 12px;
+@checkboxLength: 12px;
+
+@transitionTime: .3s;
+
+.zztree-node-name {
+  padding-left: 4px;
+  word-break: keep-all;
+  user-select: none;
+  cursor: pointer;
+}
+
+ul,
+li {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.zztree {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: scroll;
+
+  .checkbox {
+    position: relative;
+    display: inline-block;
+    width: @checkboxLength;
+    height: @checkboxLength;
+    min-width: @checkboxLength;
+    border: 1px solid @primaryBlack;
+    border-radius: 2px;
+    transition: all @transitionTime;
+
+    &:hover {
+      border-color: @primaryBlue;
+      cursor: pointer;
+    }
+
+    &.checked {
+        background-image: url('./checked.svg');
+        border: 1px solid @primaryBlue;
+    }
+
+    &.half-checked {
+      border: 1px solid @primaryBlue;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        background-color: @primaryBlue;
+        width: 8px;
+        height: 8px;
+      }
+    }
+  }
+
+  .operate {
+    position: relative;
+    display: inline-block;
+    margin: 4px 0 0 4px;
+    width: 4px;
+    height: 12px;
+    cursor: pointer;
+
+    &:before {
+      content: '';
+      position: absolute;
+      width: 0; 
+      height: 6px; 
+      border: dotted 2px @primaryBlue;
+      border-left: 2px;
+    }
+
+    &:hover .operate-list {
+      display: flex;
+    }
+
+    .operate-list {
+      position: absolute;
+      left: -60px;
+      z-index: 100;
+      // border: 1px solid @primaryBlue;
+      display: none;
+      border-radius: 4px;
+      flex-direction: column;
+      min-width: 60px;
+      background-color: @primaryWhite;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+
+      li {
+        text-align: left;
+        padding: 2px 2px 2px 4px;
+        font-size: 10px;
+        
+        &:hover {
+          background-color: @lightBlue;
+        }
+      }
+
+      &:before {
+        content: '';
+        position: absolute;
+      }
+    }
+  }
+
+  .zztree-node {
+    position: relative;
+    padding-left: @treeNodePaddingLeft;
+    text-align: left;
+    transition: all @transitionTime;
+
+    & > div {
+      display: inline-block;
+    }
+
+    & li {
+      position: relative; 
+      padding-left: 18px;
+    }
+
+    &.close li {
+      display: none;
+    }
+
+    & .zztree-node-name {
+      .zztree-node-name();
+    }
+
+    .zztree-switcher {
+      position: absolute;
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      top: 6px;
+      left: 0;
+      cursor: pointer;
+
+      &:before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 8px solid rgba(0,0,0,.6);
+      }
+
+      &.ajaxing {
+        border: 1px solid @primaryBlue;
+        border-radius: 100%;
+        width: 8px;
+        height: 8px;
+        animation:mymove 1s linear infinite;
+
+        &::before {
+          content: '';
+          position: absolute;
+          width: 9px;
+          height: 6px;
+          display: inline-block;
+          background-color: @primaryWhite;
+          top: 0;
+          left: 0;
+          border: 1px solid @primaryWhite;
+          border-radius: 8px 8px 2px 2px / 2px 2px 2px 2px;
+        }
+      }
+    }
+
+    .zztree-switcher-close:before {
+      transform: rotate(-90deg);
+    }
+
+    .zztree-node-selected {
+      background-color: @lightBlue;
+    }
+  }
+
+  @keyframes mymove {
+    from {
+      transform: rotate(0);
+    }
+
+    to {
+      transform: rotate(360deg)
+    }
+  }
+
+}

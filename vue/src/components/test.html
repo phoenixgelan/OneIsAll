@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>test</title>
+	<script type="text/javascript" src="./vue-v2.5.17.js"></script>
+</head>
+<body>
+	<div id="test">
+		<ul>
+			<li v-for="item in arr"
+				:key="item.id">
+					<input type="checkbox" />
+				</li>
+		</ul>
+	</div>
+</body>
+	<script type="text/javascript">
+		new Vue({
+			el: '#test',
+			data(){
+				return {
+
+				}
+			}
+		})
+	</script>
+</html>

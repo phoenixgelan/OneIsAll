@@ -2,7 +2,8 @@ import Login from '@/components/Login.vue'
 import Transfer from '@/components/Transfer.vue'
 import Keyboard from '@/components/Keyboard.vue'
 import Main from '@/components/Main.vue'
-import demo from '@/views/demo.vue'
+import demoVueTable from '@/views/demo-vxeTable/index.vue'
+import vxeTree from '@/views/demo-vxeTree/index.vue'
 
 export const routes = [
     // {
@@ -33,6 +34,10 @@ export const routes = [
     },
     {
         path: '/',
-        component: demo
-    }
+        component: vxeTree
+    },
+    // {
+    //     path: '/',
+    //     component: demoVueTable
+    // }
 ]
