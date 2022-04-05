@@ -1,0 +1,15 @@
+* [0/5] 需要新增的功能
+** TODO select
+** TODO selectedKeys
+** TODO events emit
+** TODO 搜索功能
+** TODO defaultSelectedKeys
+
+* BUGS [0/1]
+** TODO 向父元素emit节点信息时，去除自定义属性
+
+* 优化 [0/2]
+** TODO 滚动时不平滑，最上面的第一条数据紧贴最上方
+   调整可视区域的数量，动态计算scrollTop，可视区域的可视节点数增大
+** TODO 命名风格统一
+   - enableSelect / enableCheck / enableAsync

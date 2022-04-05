@@ -1,8 +1,11 @@
 <template>
-    <vxe-tree :treeData="treeData"
-              :config="treeConfig" >
-       <div slot="icon-1" style="display: inline-block">aaa</div>
-    </vxe-tree>
+<vxe-tree :treeData="treeData"
+          :config="treeConfig"
+          @nodeSelect="nodeSelect"
+          >
+  <div slot="icon-1" style="display: inline-block">aaa</div>
+  <div slot="icon-2" style="display: inline-block">bbb</div>
+</vxe-tree>
 </template>
 <script>
 
@@ -18,114 +21,126 @@ const levelAmount = 2; // 节点层数
 const asyncNeeded = true
 
 function createNode(name, id, level = 0) {
-    // const node = { id: id + '', name, level}
-    const node = { key: id + '', title: name, level}
+  // const node = { id: id + '', name, level}
+  const node = { key: id + '', title: name, level}
 
-    const childrenAmount = (Math.random() * (nodeChildrenMaxAmount - nodeChildrenMinAmount) | 0) + nodeChildrenMinAmount
-    const children =  createNodeChildren(node, childrenAmount)
-    // const o = {
-    //     id: id + '',
-    //     name,
-    //     level,
-    //     // hasChildren: children && children.length > 0,
-    //     // _visible: level === 0,
-    //     children
-    // }
-    const o = {
-        key: id + '',
-        title: name,
-        level,
-        // hasChildren: children && children.length > 0,
-        // _visible: level === 0,
-        subItems: children
+  const childrenAmount = (Math.random() * (nodeChildrenMaxAmount - nodeChildrenMinAmount) | 0) + nodeChildrenMinAmount
+  const children =  createNodeChildren(node, childrenAmount)
+  // const o = {
+  //     id: id + '',
+  //     name,
+  //     level,
+  //     // hasChildren: children && children.length > 0,
+  //     // _visible: level === 0,
+  //     children
+  // }
+  const o = {
+    key: id + '',
+    title: name,
+    level,
+    // hasChildren: children && children.length > 0,
+    // _visible: level === 0,
+    subItems: children
+  }
+
+  if (asyncNeeded) {
+    if (level === 0) {
+      o.isLeafnode = true
     }
+  }
 
-    if (asyncNeeded) {
-        if (level === 0) {
-            o.isLeafnode = true
-        }
-    }
+  o.iconSlotName = 'icon-1'
 
-    o.iconSlotName = 'icon-1'
-
-    return o
+  return o
 }
 
 function createNodeChildren (node, amount) {
-    // const { id, name, level } = node
-    const { key, title, level, subItems } = node
-    if (level >= levelAmount) {
-        return []
-    }
-    const arr = []
-    for (let i = 0; i < amount; i++) {
-        // arr.push(createNode(`${name}-${i}`, `${name}-${i}`, level + 1))
-        arr.push(createNode(`${title}-${i}`, `${title}-${i}`, level + 1))
-    }
-    return arr
+  // const { id, name, level } = node
+  const { key, title, level, subItems } = node
+  if (level >= levelAmount) {
+    return []
+  }
+  const arr = []
+  for (let i = 0; i < amount; i++) {
+    // arr.push(createNode(`${name}-${i}`, `${name}-${i}`, level + 1))
+    arr.push(createNode(`${title}-${i}`, `${title}-${i}`, level + 1))
+  }
+  return arr
 }
 
 export default {
-    name: 'vxeTreeDemo',
-    components: {
-        vxeTree
-    },
-    data () {
-        return {
-            treeConfig: {
-                asyncNeeded: true, // 为true时 defaultExpandAll=true 失效
-                asyncCallback: (node) => {
-                    return this.asyncCallback(node)
-                },
+  name: 'vxeTreeDemo',
+  components: {
+    vxeTree
+  },
+  data () {
+    return {
+      treeConfig: {
+        asyncNeeded: true, // 为true时 defaultExpandAll=true 失效
+        asyncCallback: (node) => {
+          return this.asyncCallback(node)
+        },
 
-                checkable: true,
-                checkRelation: {
-                    Y: 'parent,children',
-                    N: 'parent,children'
-                },
-                defaultCheckedKeys: [],
-                defaultExpandAll: true,
-                replaceFields: {
-                    name: 'title',
-                    id: 'key',
-                    children: 'subItems'
-                }
-            },
-            treeData: []
-        }
-    },
-    created(){
-        const arr = []
-        for (let index = 0; index < firstLevelNodeAmount; index++) {
-            const node = createNode('a' + index, index, 0)
-            arr.push(node)
-        }
-        console.log(arr)
+        // enableSelect: false,
+        enableMultiSelect: true,
 
-        // this.treeData = arr
-        this.treeData = [
-            {
-                title: 'async-title',
-                key: '0',
-                isLeafnode: false,
-                iconSlotName: 'icon-1'
-            }
-        ]
-    },
-    methods: {
-        asyncCallback (node) {
-            
-                node.level = 1
-                console.log(node)
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        const arr = createNodeChildren(node, 20)
-                        resolve(arr)
-                    }, 1000)
-                    // reject('error')
-                })
-            
+        checkable: true,
+        checkRelation: {
+          Y: 'parent,children',
+          N: 'parent,children'
+        },
+        defaultCheckedKeys: [],
+
+        defaultExpandAll: true,
+
+        replaceFields: {
+          name: 'title',
+          id: 'key',
+          children: 'subItems'
         }
+      },
+      treeData: []
     }
+  },
+  created(){
+    const arr = []
+    for (let index = 0; index < firstLevelNodeAmount; index++) {
+      const node = createNode('a' + index, index, 0)
+      arr.push(node)
+    }
+    console.log(arr)
+
+    // this.treeData = arr
+    this.treeData = [
+      {
+        title: 'async-title',
+        key: '0',
+        isLeafnode: false,
+        iconSlotName: 'icon-1'
+      }
+    ]
+  },
+  methods: {
+    nodeSelect (nodeId, {selected, node}) {
+      console.error('--------nodeSelect--------');
+      console.log('nodeId:' + nodeId);
+      console.log('selected: ' + selected);
+      console.log('node: ');
+      console.log(node);
+    },
+
+    asyncCallback (node) {
+      node.level = 1
+      console.log(node)
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const arr = createNodeChildren(node, 20)
+          resolve(arr)
+        }, 1000)
+        // reject('error')
+      })
+
+    }
+  }
 }
 </script>
