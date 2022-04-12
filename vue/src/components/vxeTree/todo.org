@@ -1,15 +1,149 @@
-* [0/5] 需要新增的功能
-** TODO select
-** TODO selectedKeys
-** TODO events emit
-** TODO 搜索功能
-** TODO defaultSelectedKeys
+#+TODO: TODO(t) DOING(i) | DONE(d)
+#+OPTIONS: ^:nil toc:2 \n:t
 
-* BUGS [0/1]
+
+* [13/15] 需要新增的功能
+** DONE 基本信息展示
+** DONE 展开/收起
+** DONE 节点选中
+** DONE 节点勾选，以及父子节点勾选联动
+** DONE 异步加载节点
+** DONE 滚动到具体节点
+** DONE 展开具体节点
+** DONE 默认勾选具体节点
+** DONE 自定义图标
+** DONE 自定义操作事件
+** DONE 搜索功能
+** TODO disabled属性
+** TODO multiSelect 功能
+** DONE defaultSelectedKeys
+** DONE 加载状态 & 搜索空白状态 & 无数据状态
+
+* BUGS [1/3]
+** DONE $forceUpdate()会重新生成全部可视节点？
+   生成的节点数量比较小，不影响效率
 ** TODO 向父元素emit节点信息时，去除自定义属性
+** TODO 节点收缩如果高度很小，滚动条还是会显示
 
-* 优化 [0/2]
-** TODO 滚动时不平滑，最上面的第一条数据紧贴最上方
+* 优化 [1/4]
+** DONE 滚动时不平滑，最上面的第一条数据紧贴最上方
    调整可视区域的数量，动态计算scrollTop，可视区域的可视节点数增大
 ** TODO 命名风格统一
    - enableSelect / enableCheck / enableAsync
+** TODO 搜索功能相关的参数和方法抽离出来
+** TODO document.querySelector &  getElement
+
+* DONE 树节点渲染过程中耗时的操作
+  1. vue文件中生成手动生成树节点【不需要调整】
+  2. vue中treeData改变，触发js文件中watch:data函数【不需要调整】
+  3. js文件中 cloneDeep 操作
+     直接使用原始数据，不进行cloneDeep操作
+  4. 设置 this.treeNodes 操作中，遍历数组时的 push 操作
+     不进行cloneDeep操作后，push操作也变快了
+
+* ant design vue 树组件参数
+** tree参数
+   |   | 名称                  | 类型          | 默认值       | 说明               |
+   |---+-----------------------+---------------+--------------+--------------------|
+   | Y | async                 | Boolean       | false        |                    |
+   |   | autoExpandParent      |               |              |                    |
+   |   | blockNode             |               |              |                    |
+   | Y | checkable             | Boolean       | false        |                    |
+   | Y | checkedKeys(v-model)  | Array<String> | []           |                    |
+   | Y | checkRelation         | Object        | 默认值[fn:1] |                    |
+   | N | checkStrictly         |               |              | 使用 checkRelation |
+   | Y | defaultExpandAll      | Boolean       | false        |                    |
+   |   | disabled              |               |              |                    |
+   |   | draggable             |               |              |                    |
+   |   | expandedKeys(v-model) |               |              |                    |
+   |   | enableSearch          | Boolean       | false        |                    |
+   | Y | fieldNames            | Object        | 默认值[fn:2] |                    |
+   | Y | filterTreeNode        | Funtion       | 默认值[fn:3] |                    |
+   | Y | loadData              | Function      | 默认值[fn:4] |                    |
+   |   | loadedKeys            |               |              |                    |
+   |   | multiple              |               |              |                    |
+   | Y | selectable            |               |              |                    |
+   | Y | selectedKeys(v-model) |               |              |                    |
+   |   | showIcon              |               |              |                    |
+   |   | showLine              |               |              |                    |
+   |   | switcherIcon          |               |              |                    |
+   | Y | title                 | Function      | 默认值[fn:5] |                    |
+   | Y | treeData              | Array<Object> | []           |                    |
+   |   | virtual               |               |              |                    |
+
+** tree事件
+   |   | 名称       | 方法参数                                                  | 说明 |
+   |---+------------+-----------------------------------------------------------+------|
+   | Y | check      | (checkedKeys, {checked, checkedNodes, node, event}) => {} |      |
+   |   | dragend    | ({event, node}) => {}                                     |      |
+   |   | dragenter  | ({event, node, expandedKeys}) => {}                       |      |
+   |   | dragleave  | ({event, node}) => {}                                     |      |
+   |   | dragover   | ({event, node}) => {}                                     |      |
+   |   | dragstart  | ({event, node}) => {}                                     |      |
+   | Y | drop       | ({event, node, dragNode, dragNodesKeys}) => {}            |      |
+   | Y | expand     | (expandedKeys, {expanded, node}) => {}                    |      |
+   | Y | load       | (loadedKeys, {event, node}) => {}                         |      |
+   |   | rightClick | ({event, node}) => {}                                     |      |
+   | Y | select     | selectedKeys, {selected, selectedNodes, node, event})     |      |
+
+** treeNode参数
+   |   | 名称            | 类型    | 默认值 | 说明 |
+   |---+-----------------+---------+--------+------|
+   |   | checkable       | Boolean |        |      |
+   |   | class           | String  |        |      |
+   |   | disableCheckbox | Boolean | false  |      |
+   |   | disabled        | Boolean | false  |      |
+   |   | icon            | String  |        |      |
+   |   | isLeaf          | Boolean | false  |      |
+   |   | id              | String  |        |      |
+   |   | selectable      | Boolean | true   |      |
+   |   | style           | Object  |        |      |
+   |   | name            | String  |        |      |
+
+* Footnotes
+
+[fn:5]title 默认值:
+
+#+BEGIN_SRC js
+  node => {
+    return node[this._name]
+  }
+#+END_SRC
+
+
+[fn:4]loadData 默认值:
+
+#+BEGIN_SRC js
+  () => {
+    return new Promise(resolve => resolve([]))
+  }
+#+END_SRC
+
+
+[fn:3]filterTreeNode 默认值:
+
+#+BEGIN_SRC js
+  (value, node) => {
+    return node.name.toLowerCase().includes(value.toLowerCase())
+  }
+#+END_SRC
+
+
+[fn:2] fieldNames 默认值：
+
+#+BEGIN_SRC js
+  {
+    name: 'name',
+    id: 'id',
+    children: 'children'
+  }
+#+END_SRC
+
+[fn:1] checkRelation的默认值
+
+#+BEGIN_SRC js
+  {
+    Y: 'parent,children',
+    N: 'parent,children'
+  }
+#+END_SRC
