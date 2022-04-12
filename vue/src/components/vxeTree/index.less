@@ -6,128 +6,278 @@
 @treeNodePaddingLeft: 12px;
 @checkboxLength: 12px;
 
+@iconLength: 16px;
+
 @transitionTime: .3s;
 
-.vxe-tree-node {
-  position: relative;
-  text-align: left;
-  padding-left: 20px;
+@borderRadius: 4px;
 
-  .vxe-tree-switcher {
+@nodeSelectedBackgroundColor: #e7eff9;
+
+.vxe-tree {
+
+  ul,
+  li {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  /* 搜索框 begin */
+  .vxe-tree-search-box {
     position: relative;
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    top: 1px;
-    left: 0;
-    cursor: pointer;
+    text-align: left;
+    padding: 0 10px;
 
-    &:before {
-      content: '';
+    input {
+      width: 100%;
+      max-width: 200px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      outline: none;
+      padding-left: 4px;
+    }
+
+    ul,
+    .vxe-tree-search-result-empty {
+      display: inline-block;
       position: absolute;
-      width: 0;
-      height: 0;
-      border-left: 4px solid transparent;
-      border-right: 4px solid transparent;
-      border-top: 8px solid rgba(0,0,0,.6);
-      transform: rotate(-90deg);
-    }
+      width: 200px;
+      height: 200px;
+      top: 24px;
+      left: 10px;
+      background-color: @primaryWhite;
+      z-index: 1;
+      overflow: auto;
+      text-align: center;
+      box-shadow: 0 3px 6px -4px #0000001f,
+                  0 6px 16px #00000014,
+                  0 9px 28px 8px #0000000d;
+      box-shadow: 0 0 8px #00000026;
 
-    &.expanded:before {
-      transform: rotate(0);
-    }
+      li {
+        text-align: left;
+        cursor: pointer;
+        padding: 4px;
 
-    &.ajaxing {
-      top: -2px;
-      border: 1px solid @primaryBlue;
-      border-radius: 100%;
-      width: 8px;
-      height: 8px;
-      animation:mymove 1s linear infinite;
-
-      &::before {
-        content: '';
-        position: absolute;
-        width: 9px;
-        height: 6px;
-        display: inline-block;
-        background-color: @primaryWhite;
-        top: 0;
-        left: 0;
-        border: 1px solid @primaryWhite;
-        border-radius: 8px 8px 2px 2px / 2px 2px 2px 2px;
+        &:hover {
+          background-color: @lightBlue;
+        }
       }
     }
   }
+  /* 搜索框 end */
 
-  .checkbox {
+  /* 节点样式 begin */
+  .vxe-tree-node {
     position: relative;
-    display: inline-block;
-    width: @checkboxLength;
-    height: @checkboxLength;
-    min-width: @checkboxLength;
-    border: 1px solid @primaryBlack;
-    border-radius: 2px;
-    // transition: all @transitionTime;
-
-    // background-image: url(./zTreeStandard.png);
-    // background-position: 0 0;
+    text-align: left;
+    padding-left: 20px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    display: flex;
+    align-items: center;
 
     &:hover {
-      border-color: @primaryBlue;
+      background: #DDD;
+    }
+
+    /* 节点展开收起箭头 begin */
+    .vxe-tree-switcher {
+      position: relative;
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-bottom: 2px;
       cursor: pointer;
-    }
 
-    &.checked {
-      background-color: @primaryBlue;
-      border: 1px solid @primaryBlue;
-
-      &::before {
+      &:before {
         content: '';
         position: absolute;
-        width: 8px;
-        height: 6px;
-        background-color: @primaryBlue;
-        transform: rotate(-50deg);
-        top: 1px;
-        left: 2px;
-        border-radius: 1px;
-        border-bottom: 2px solid @primaryWhite;
-        border-left: 2px solid @primaryWhite;
-        border-top: 2px solid @primaryBlue;
-        border-right: 2px solid @primaryBlue;
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 8px solid rgba(0,0,0,.6);
+        transform: rotate(-90deg);
       }
-    }
 
-    // &.checked {
-    //   // background-image: url('./checked.svg');
-    //   // border: 1px solid @primaryBlue;
+      &.expanded:before {
+        transform: rotate(0);
+      }
 
-    //   background-position: -14px 0;
-    // }
-
-    &.halfChecked {
-      border: 1px solid @primaryBlue;
-
-      &::before {
-        content: '';
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        background-color: @primaryBlue;
+      &.ajaxing {
+        top: -2px;
+        border: 1px solid @primaryBlue;
+        border-radius: 100%;
         width: 8px;
         height: 8px;
+        animation:mymove 1s linear infinite;
+
+        &::before {
+          content: '';
+          position: absolute;
+          width: 9px;
+          height: 6px;
+          display: inline-block;
+          background-color: @primaryWhite;
+          top: 0;
+          left: 0;
+          border: 1px solid @primaryWhite;
+          border-radius: 8px 8px 2px 2px / 2px 2px 2px 2px;
+        }
       }
     }
-  }
+    /* 节点展开收起箭头 end */
 
-  .vxe-tree-node-name {
-    padding-left: 4px;
+    /* 复选框 begin */
+    .checkbox {
+      position: relative;
+      display: inline-block;
+      width: @checkboxLength;
+      height: @checkboxLength;
+      min-width: @checkboxLength;
+      border: 1px solid @primaryBlack;
+      border-radius: 2px;
+      margin-bottom: 4px;
 
-    &.selected {
-      background-color: @primaryBlue;
+      &:hover {
+        border-color: @primaryBlue;
+        cursor: pointer;
+      }
+
+      &.checked {
+        background-color: @primaryBlue;
+        border: 1px solid @primaryBlue;
+
+        &::before {
+          content: '';
+          position: absolute;
+          width: 8px;
+          height: 6px;
+          background-color: @primaryBlue;
+          transform: rotate(-50deg);
+          top: 1px;
+          left: 2px;
+          border-radius: 1px;
+          border-bottom: 2px solid @primaryWhite;
+          border-left: 2px solid @primaryWhite;
+          border-top: 2px solid @primaryBlue;
+          border-right: 2px solid @primaryBlue;
+        }
+      }
+
+      &.halfChecked {
+        border: 1px solid @primaryBlue;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 1px;
+          left: 1px;
+          background-color: @primaryBlue;
+          width: 8px;
+          height: 8px;
+        }
+      }
     }
+    /* 复选框 end */
+
+    /* 自定义图标 begin */
+    .icon-danwei,
+    .icon-bumen,
+    .icon-jianzhu {
+      display: inline-block;
+      background-repeat: no-repeat;
+      width: @iconLength;
+      height: @iconLength;
+      background-size: @iconLength @iconLength;
+    }
+
+    .icon-danwei {
+      background-image: url('./images/danwei.png')
+    }
+    .icon-bumen {
+      background-image: url('./images/bumen.png')
+    }
+    .icon-jianzhu {
+      background-image: url('./images/jianzhu.png')
+    }
+    /* 自定义图标 end */
+
+    /* 节点名称 begin */
+    .vxe-tree-node-name {
+      padding-left: 4px;
+      display: inline-block;
+      // width: calc(~'100% - 40px');
+      height: 24px;
+      line-height: 24px;
+      overflow: hidden;
+      word-break: break-all;
+      border-radius: @borderRadius;
+
+      &.selected {
+        background-color: @nodeSelectedBackgroundColor;
+      }
+    }
+    /* 节点名称 end */
+
+    /* 节点操作图标 begin */
+    .vxe-tree-node-operate {
+      position: absolute;
+      right: 10px;
+      top: 6px;
+      display: inline-block;
+      // margin: 4px 0 0 4px;
+      width: 4px;
+      height: 12px;
+      cursor: pointer;
+
+      &:before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 10px;
+        border: dotted 2px @primaryBlue;
+        border-left: 2px;
+      }
+
+      &:hover .vxe-tree-node-operate-list {
+        display: flex;
+      }
+
+      .vxe-tree-node-operate-list {
+        position: absolute;
+        left: -60px;
+        z-index: 100;
+        // border: 1px solid @primaryBlue;
+        display: none;
+        border-radius: 4px;
+        flex-direction: column;
+        min-width: 60px;
+        background-color: @primaryWhite;
+        box-shadow: 0 2px 8px ~"rgb(0 0 0 / 15%)";
+
+        li {
+          text-align: left;
+          padding: 2px 2px 2px 4px;
+          font-size: 10px;
+
+          &:hover {
+            background-color: @lightBlue;
+          }
+        }
+
+        &:before {
+          content: '';
+          position: absolute;
+        }
+      }
+    }
+    /* 节点操作图标 begin */
   }
+  /* 节点样式 end */
+
 }
 
 @keyframes mymove {

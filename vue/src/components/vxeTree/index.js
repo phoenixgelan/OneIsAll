@@ -1,51 +1,140 @@
 import './index.less'
-import _ from 'lodash'
+
+const nodeHeight = 30 // 每个节点高度
+
+const bufferSize = 2 // 可视区域顶部和底部添加多出的数据的数量
+
+let allNodesArr = []
+let allNodesObj = {}
+
+// let treeData = []
+
+const searchResultHeight = 200 // 搜索面板高度
+const searchResultLiHeight = 24 // 搜索项每一项的高度
+const searchInputHeight = 24 // 搜索输入框的高度
+const searchResultAmountPerPage = (searchResultHeight / searchResultLiHeight) | 1 // 搜索面板每页数量
+
+let searchResultArrTemp = []
+
+const searchResultCached = {} // 缓存搜索的结果，加快页面显示
+
+const operateItemHeight = 24 // 操作弹窗，每项高度
+
+let dom
 
 export default {
-  name: 'vxeTree',
+  name: 'ComVxeTree',
   props: {
-    data: {
+    async: {
+      type: Boolean,
+      default: false
+    },
+    checkable: {
+      type: Boolean,
+      default: false
+    },
+    checkedKeys: {
       type: Array,
       default: () => []
     },
-    config: {
+    checkRelation: {
       type: Object,
+      default: () => {
+        return {
+          Y: 'parent,children',
+          N: 'parent,children'
+        }
+      }
+    },
+    defaultExpandAll: {
+      type: Boolean,
+      default: false
+    },
+    enableSearch: {
+      type: Boolean,
+      defalut: false
+    },
+    fieldNames: {
+      type: Object,
+      default: () => {
+        return {
+          name: 'name',
+          id: 'id',
+          children: 'children'
+        }
+      }
+    },
+    filterTreeNode: {
+      type: Function
+    },
+    loadData: {
+      type: Function,
+      default: () => {
+        return new Promise(resolve => resolve([]))
+      }
+    },
+    selectable: {
+      type: Boolean,
+      default: true
+    },
+    selectedKeys: {
+      type: Array,
+      default: () => []
+    },
+    title: {
+      type: Function,
       default: () => {}
+    },
+    treeData: {
+      type: Array,
+      default: () => []
     }
   },
   watch: {
-    data: {
+    treeData: {
       deep: true,
-      immediate: true,
       handler (value) {
-        this.treeData = _.cloneDeep(value)
+        this.init(value)
       }
     }
   },
   computed: {
     fullConfig () {
       const defaultConfig = {
-        asyncNeeded: false,
-        asyncCallback: () => {},
+        containerHeight: 0,
 
-        enableSelect: true,
+        enableOperate: false,
+        operateList: [],
+
+        /**
+         * 兼容org-tree中的参数
+         * 树节点中的图标与每个节点中dwType的值有关
+         */
+        enableOrgTreeIcon: false,
+
+        enableSearch: false,
+
+        // asyncNeeded: false,
+        // asyncCallback: () => {},
+
+        // enableSelect: true,
         enableMultiSelect: false,
 
-        defaultSelectedKey: '',
+        defaultSelectedKey: ''
 
-        checkable: false,
-        checkRelation: {
-          Y: 'parent,children',
-          N: 'parent,children'
-        },
-        defaultCheckedKeys: [],
+        // checkable: false,
+        // checkRelation: {
+        //   Y: 'parent,children',
+        //   N: 'parent,children'
+        // },
+        // defaultCheckedKeys: [],
 
-        defaultExpandAll: false,
-        replaceFields: {
-          name: 'name',
-          id: 'id',
-          children: 'children'
-        }
+        // defaultExpandAll: false,
+        // replaceFields: {
+        //   name: 'name',
+        //   id: 'id',
+        //   children: 'children'
+        // }
       }
       return Object.assign({}, defaultConfig, this.config)
     },
@@ -55,7 +144,7 @@ export default {
      * @return {Array} ['parent', 'children'] / ['parent'] / ['children'] / []
      */
     Y () {
-      const checkRelation = this.fullConfig.checkRelation
+      const checkRelation = this.checkRelation || {}
       return checkRelation.Y ? checkRelation.Y.split(',').map(i => i.trim()) : []
     },
 
@@ -64,41 +153,37 @@ export default {
      * @return {Array} ['parent', 'children'] / ['parent'] / ['children'] / []
      */
     N () {
-      const checkRelation = this.fullConfig.checkRelation
+      const checkRelation = this.checkRelation || {}
       return checkRelation.N ? checkRelation.N.split(',').map(i => i.trim()) : []
+    },
+    _id () {
+      return this.fieldNames.id
+    },
+    _name () {
+      return this.fieldNames.name
+    },
+    _children () {
+      return this.fieldNames.children
     }
   },
   data () {
     return {
-      test_randomId: '',
-
       height: 0,
-      oldBeginIndex: 0,
-
-      // 记录全部处理过的节点信息
-      allNodesArr: [],
-      allNodesObj: {},
-
-      visibleNodesArr: [],
-      totalVisibleAmount: 0,
 
       // 记录全部的节点信息（源数据）
-      originalDataArr: [],
-      originalDataObj: {},
+      // originalDataObj: {},
 
-      selectedNodes: [],
+      // selectedNodes: [],
 
-      treeId: '',
+      // treeId: '',
 
       // 树形结构的节点信息
-      treeData: [],
+      // treeData: [],
 
       // 页面上可以看到的节点信息
       treeNodes: [],
 
       tempArr: [], // 暂存处理过程中的数组
-
-      // nodeAmount: 10,
 
       // 容器的总高度
       containerHeight: 0,
@@ -112,130 +197,386 @@ export default {
       // 顶部margin
       bodyMarginTop: 0,
       // 底部margin
-      bodyMarginBottom: 1000
+      bodyMarginBottom: 0,
+
+      showSearchResult: false,
+      showSearchResultEmpty: false,
+      // searchKeyWord: '',
+      searchResultArr: []
     }
   },
-  created () {
-    this.treeId = '' + new Date().getTime() // FIXME 感觉最好不要用一串数字来作ID值。如果页面同时存在多个树组件可能会出现问题
-
-    if (!this.treeData || this.treeData.length === 0) {
-      // TODO 此处添加空数据的逻辑
-      return
-    }
-
-    // Mounted中可能需要获取第一项的高度值 TODO
-    this.treeNodes = this.data.slice(0, 1)
-
-    console.time('计算节点数据用时')
-    this.getAllNodes(this.treeData)
-    this.getOriginalNodes(this.data)
-    console.timeEnd('计算节点数据用时')
-
-    console.error('总节点数量：' + this.allNodesArr.length)
-  },
-
   mounted () {
-    if (!this.treeData || this.treeData.length === 0) {
-      // TODO 此处添加空数据的逻辑
-      return
-    }
-
-    const height = document.querySelector('.vxe-tree-content').clientHeight
-    this.containerHeight = height
-
-    let itemHeight
-    const dom = document.querySelector('.vxe-tree-body').children
-    if (dom && dom[0].clientHeight) {
-      itemHeight = dom[0].clientHeight
-    }
-    this.nodeHeight = itemHeight
-
-    if (height && itemHeight) {
-      // 小数向上取整
-      this.visibleAmount = Number((height / itemHeight).toFixed(0)) + 1
-    }
-
-    let temp = 0
-    this.treeNodes = this.allNodesArr.filter(item => {
-      return item._visible && temp++ < this.visibleAmount
-    })
-
-    // 计算初始的顶部和底部的距离，生成滚动条
-    this.calculateMargin(0)
-
-    const {
-      defaultSelectedKey,
-      defaultCheckedKeys
-    } = this.fullConfig
-    // 有默认选中值时，选中并滚动到这个节点
-    if (defaultSelectedKey) {
-      this.expandToNode(defaultSelectedKey)
-    }
-
-    // 有默认勾选值时，勾选对应节点
-    // const _id = this.fullConfig.replaceFields.id
-    if (defaultCheckedKeys && defaultCheckedKeys.length > 0) {
-      defaultCheckedKeys.forEach(item => {
-        this.nodeCheck(this.allNodesObj[item])
-      })
-    }
+    this.init(this.treeData)
   },
+
   methods: {
     /**
-     * 展开节点
-     * 会展开该节点的所有层级的父节点
-     * @param id {String} 节点ID
+     * 计算操作面板的位置
      */
-    expandToNode (id) {
-      const node = this.allNodesObj[id]
-      if (!node) {
+    recalculateListPosition (event, node) {
+      const target = event.target
+      if (target.tagName === 'LI') {
         return false
       }
 
-      const _id = this.fullConfig.replaceFields.id
-      const _children = this.fullConfig.replaceFields.children
+      const nodeId = node[this._id]
+      const index = this.treeNodes.findIndex(item => {
+        return item[this._id] === nodeId
+      })
 
-      const parentId = node._parentId
-      if (parentId) {
-        // 父节点以及父节点的所有子节点，改变显示状态
-        const parentNode = this.allNodesObj[parentId]
-        parentNode._expanded = true
-        parentNode._visible = true
-        const children = parentNode[_children]
-        if (children && children.length > 0) {
-          children.forEach(item => {
-            item._visible = true
-          })
-          this.tempArr = children.concat(this.tempArr)
-        }
+      // 当前节点距离容器顶部的距离
+      const top = index * this.nodeHeight
 
-        this.expandToNode(parentId)
-      } else { // 最顶层节点
-        const visibleNodes = this.allNodesArr.filter(item => item._visible === true)
-        const index = visibleNodes.findIndex(item => item[_id] === node[_id])
-        // 把展开的全部节点添加到显示的节点信息中
-        this.treeNodes.splice(index + 1, 0, ...this.tempArr)
-        this.tempArr = []
+      // 操作弹窗的高度
+      const length = node.operateList && node.operateList.length
+      const height = length * operateItemHeight
 
-        // 滚动到该节点的位置，并选中该节点
-        const scrollTop = this.nodeHeight * index
-        document.querySelectorAll('.vxe-tree-body')[0].parentElement.scrollTop = scrollTop
-        this.nodeClick(this.allNodesObj[this.fullConfig.defaultSelectedKey])
+      const totalHeight = this.containerHeight
 
-        this.$forceUpdate()
+      if (totalHeight - top < height) {
+        event.target.parentElement.querySelector('ul').style.top = '-' + (height - operateItemHeight) + 'px'
       }
     },
 
     /**
+     * 点击搜索结果面板中的一项
+     */
+    eventClickSearchResult (event) {
+      this.showSearchResult = false
+
+      const id = event.target.dataset.id
+      this.scrollToNode(id)
+
+      const name = allNodesObj[id][this._name]
+      event.target.parentElement.parentElement.querySelector('input').value = name
+
+      this.$forceUpdate()
+    },
+
+    /**
+     * 搜索
+     */
+    eventSearch (value) {
+      this.showSearchResult = true
+
+      value = value.trim().toLowerCase()
+      searchResultArrTemp = this.getSearchResultArr(value)
+
+      this.searchResultArr = []
+      const totalNumber = searchResultAmountPerPage
+
+      for (let i = 0; i < totalNumber; i++) {
+        searchResultArrTemp[i] && this.searchResultArr.push(searchResultArrTemp[i])
+      }
+      this.showSearchResultEmpty = this.searchResultArr.length === 0 || !value
+
+      this.$forceUpdate()
+    },
+
+    /**
+     * 从树节点信息中查找符合搜索关键字的节点
+     * @param keyWord {String} 搜索的关键字
+     * @return {Array} 匹配项
+     */
+    getSearchResultArr (keyWord) {
+      keyWord = keyWord.trim()
+      const keys = Object.keys(searchResultCached)
+      if (keys.indexOf(keyWord) > 0) {
+        return searchResultCached[keyWord]
+      } else {
+        const matchedKeys = keys.filter(item => {
+          return keyWord.includes(item)
+        }).sort((a, b) => {
+          return b.length - a.length
+        })
+        if (matchedKeys.length > 0) {
+          const result = this.getResultFromArray(keyWord, searchResultCached[matchedKeys[0]])
+          searchResultCached[keyWord] = result
+          return result
+        }
+      }
+
+      const result = this.getResultFromArray(keyWord, allNodesArr)
+      searchResultCached[keyWord] = result
+      return result
+    },
+
+    /**
+     * 从数组中找出匹配的项
+     * @param keyWord {String} 搜索的关键字
+     * @param arr {Array} 数组
+     */
+    getResultFromArray (keyWord, arr) {
+      if (!keyWord) {
+        return arr
+      }
+
+      if (this.filterTreeNode) {
+      // debugger
+        return arr.filter(item => this.filterTreeNode(keyWord, item))
+      }
+
+      return arr.filter(item => {
+        return item[this._name].toLowerCase().includes(keyWord.toLowerCase())
+      })
+    },
+
+    /**
+     * 点击树，控制搜索弹窗的显示隐藏
+     */
+    eventTreeClick (event) {
+      const { tagName, value } = event.target
+      if (tagName === 'INPUT' && value.trim() !== '') {
+        this.showSearchResult = true
+        event.preventDefault()
+        return false
+      }
+      this.showSearchResult = false
+      this.showSearchResultEmpty = false
+    },
+
+    generateSearchResult (beginIndex) {
+      for (let i = 0; i < searchResultAmountPerPage; i++) {
+        this.searchResultArr.push(searchResultArrTemp[beginIndex + i])
+      }
+    },
+
+    /**
+     * 搜索面板滚动
+     */
+    eventSearchResultScroll (event) {
+      const {
+        scrollTop
+      } = event.target
+
+      const a1 = scrollTop + searchResultHeight
+      const a2 = (this.searchResultArr.length - 1) * searchResultLiHeight
+
+      if (a1 >= a2) {
+        this.generateSearchResult(this.searchResultArr.length)
+      }
+    },
+
+    /**
+     * 数据初始化
+     */
+    init (data) {
+      allNodesArr = []
+      allNodesObj = {}
+      searchResultArrTemp = []
+
+      this.treeNodes = []
+      this.tempArr = []
+      this.bodyMarginTop = 0
+      this.bodyMarginBottom = 0
+
+      if (!data || data.length === 0) {
+        return
+      }
+
+      this.getAllNodes(data)
+      // this.getOriginalNodes(data)
+
+      console.error('总节点数量：' + allNodesArr.length)
+
+      dom = this._self.$el.parentElement
+
+      this.containerHeight = dom.clientHeight
+      this.containerWidth = dom.clientWidth
+      if (this.fullConfig.enableSearch) {
+        this.containerHeight -= searchInputHeight
+      }
+
+      this.nodeHeight = nodeHeight
+      this.visibleAmount = Number((this.containerHeight / this.nodeHeight).toFixed(0)) + 1 + bufferSize * 2
+
+      let temp = 0
+      let i
+      const tempArr = this.defaultExpandAll ? allNodesArr : data // treeData
+      const length = tempArr.length
+      for (i = 0; i < length; i++) {
+        const item = tempArr[i]
+        if (item._visible) {
+          this.treeNodes.push(item)
+          temp++
+        }
+        if (temp > this.visibleAmount) {
+          break
+        }
+      }
+
+      // 计算初始的顶部和底部的距离，生成滚动条
+      this.calculateMargin(0)
+
+      // const {
+      // defaultSelectedKey,
+      // defaultCheckedKeys
+      // } = this.fullConfig
+
+      // 有默认选中值时，选中并滚动到这个节点
+      if (this.selectedKeys && this.selectedKeys.length > 0) {
+        // TODO 只选中，不展开
+        // this.expandToNode(defaultSelectedKey)
+      }
+
+      // 有默认勾选值时，勾选对应节点
+      if (this.checkedKeys && this.checkedKeys.length > 0) {
+        this.checkedKeys.forEach(item => {
+          this.nodeCheck(allNodesObj[item])
+        })
+      }
+
+      this.$forceUpdate()
+    },
+
+    /**
+     * 展开节点
+     * 会展开该节点的所有父节点（各个层级）
+     * @param id {String} 节点ID
+     */
+    expandToNode (id) {
+      const node = allNodesObj[id]
+      const parentId = node._parentId
+
+      if (parentId) {
+        const result = this.getParentNodeArr(parentId)
+        while (result.length > 0) {
+          this.nodeExpand(null, result.pop(), true)
+        }
+      }
+    },
+
+    /**
+     * 获取节点所有的父节点ID的信息
+     * @param nodeId {String} 节点ID
+     * @return {Array} 所有父节点的ID
+     */
+    getParentNodeArr (nodeId) {
+      const node = allNodesObj[nodeId]
+
+      if (!node) {
+        return []
+      }
+      const parentId = node._parentId
+      return [node].concat(this.getParentNodeArr(parentId))
+    },
+
+    /**
+     * 搜索输入框点击
+     */
+    eventSearchInputClick (event) {
+      const value = event.target.value.trim()
+      if (value) {
+        this.eventSearch(value)
+      }
+    },
+
+    /**
+     * 生成搜索结果
+     */
+    createSearchBox (h) {
+      return h(
+        'div',
+        {
+          class: ['vxe-tree-search-box']
+        },
+        [
+          h(
+            'input',
+            {
+              attrs: {
+                // value: this.searchKeyWord
+              },
+              on: {
+                click: (e) => this.eventSearchInputClick(e),
+                keyup: e => this.eventSearch(e.target.value)
+              }
+            },
+            []
+          ),
+          this.createSearchResult(h)
+        ]
+      )
+    },
+
+    /**
+     * 生成搜索结果
+     */
+    createSearchResult (h) {
+      if (this.searchResultArr.length === 0) {
+        return [h(
+          'div',
+          {
+            class: ['vxe-tree-search-result-empty'],
+            style: {
+              display: this.showSearchResultEmpty ? 'inline-block' : 'none',
+              maxWidth: `${this.containerWidth - 40}px`
+            }
+          },
+          '暂无匹配结果'
+        )]
+      }
+
+      const arr = this.searchResultArr.map(item => {
+        return this.createSearchLi(item, h)
+      })
+      return h(
+        'ul',
+        {
+          class: [],
+          style: {
+            display: this.showSearchResult ? 'inline-block' : 'none',
+            height: `${searchResultHeight}px`,
+            maxWidth: `${this.containerWidth - 40}px`
+          },
+          on: {
+            scroll: e => this.eventSearchResultScroll(e)
+          }
+        },
+        [...arr]
+      )
+    },
+
+    /**
+     * 生成搜索结果的一个节点
+     */
+    createSearchLi (node, h) {
+      return h(
+        'li',
+        {
+          attrs: {
+            'data-id': node[this._id]
+          },
+          on: {
+            click: e => this.eventClickSearchResult(e)
+          }
+        },
+        node[this._name]
+      )
+    },
+
+    /**
      * 滚动到指定节点
+     * TODO 添加页面效果标示节点
      */
     scrollToNode (nodeId) {
-      const _id = this.fullConfig.replaceFields.id
-      const node = this.allNodesObj[nodeId]
-      const visibleNodes = this.allNodesArr.filter(item => item._visible === true)
-      const index = visibleNodes.findIndex(item => item[_id] === node[_id])
-      const scrollTop = this.nodeHeight * index
-      document.querySelectorAll('.vxe-tree-body')[0].parentElement.scrollTop = scrollTop
+      this.expandToNode(nodeId)
+
+      this.$nextTick(() => {
+        const node = allNodesObj[nodeId]
+        if (!node) {
+          return false
+        }
+        const visibleNodes = allNodesArr.filter(item => item._visible === true)
+        const index = visibleNodes.findIndex(item => item[this._id] === node[this._id])
+
+        let scrollTop = this.nodeHeight * (index + bufferSize)
+        if (this.enableSearch) {
+          scrollTop += searchInputHeight
+        }
+
+        dom.querySelector('.vxe-tree-content').scrollTop = scrollTop
+      })
     },
 
     /**
@@ -246,25 +587,24 @@ export default {
      * @param {String} parentId 父节点ID值
      */
     getAllNodes (arr, level = 0, parentId) {
-      const {
-        replaceFields: { id, children },
-        asyncNeeded,
-        defaultExpandAll
-      } = this.fullConfig
+      // const {
+      // asyncNeeded,
+      // defaultExpandAll
+      // } = this.fullConfig
 
       for (let i = 0; i < arr.length; i++) {
         const item = arr[i]
-        const _id = item[id]
-        const _children = item[children]
+        const _id = item[this._id]
+        const _children = item[this._children]
 
         item._level = level // 节点层级
-        item._visible = (asyncNeeded && !item.isLeafnode) || (!asyncNeeded && (this.fullConfig.defaultExpandAll || level === 0)) // 节点是否显示
+        item._visible = (this.async && !item.isLeaf) || (!this.async && (this.defaultExpandAll || level === 0)) // 节点是否显示
         item._parentId = parentId // 节点对应的父节点ID
         item._checkState = '' // 节点的勾选状态
-        item._expanded = defaultExpandAll && !asyncNeeded // 节点是否展开
+        item._expanded = this.defaultExpandAll && !this.async // 节点是否展开
 
-        this.allNodesArr.push(item)
-        this.allNodesObj[_id] = item
+        allNodesArr.push(item)
+        allNodesObj[_id] = item
 
         if (_children && _children.length > 0) {
           this.getAllNodes(_children, (level + 1), _id)
@@ -273,48 +613,13 @@ export default {
     },
 
     /**
-     * 由源数据生成节点信息，用于$emit时返回原来的参数信息
-     * 不会带上组件中使用到的属性
-     */
-    getOriginalNodes (arr) {
-      const {
-        replaceFields: { id: _id, children: _children }
-        // asyncNeeded,
-        // defaultExpandAll
-      } = this.fullConfig
-      for (let i = 0; i < arr.length; i++) {
-        const item = arr[i]
-        const id = item[_id]
-        this.originalDataArr.push(item)
-        this.originalDataObj[id] = item
-
-        const children = item[_children]
-        if (children && children.length > 0) {
-          this.getOriginalNodes(children)
-        }
-      }
-    },
-
-    /**
-     * 异步请求数据时会增加节点信息
-     * @param arr {Array{Object}} 节点信息
-     * @param nodeId {String} 增加的节点信息追加到哪个节点上的节点ID
-     */
-    addNewDataToOriginal (arr, nodeId) {
-      const { id: _id } = this.fullConfig.replaceFields
-      const index = this.originalDataArr.findIndex(item => item[_id] === nodeId)
-      this.originalDataArr.splice(index + 1, 0, ...arr)
-      arr.forEach(item => {
-        this.originalDataObj[_id] = item
-      })
-    },
-
-    /**
      * 计算顶部和底部的margin值，生成合适的滚动距离
      */
     calculateMargin (scrollTop) {
+      scrollTop = scrollTop - this.nodeHeight * bufferSize + (scrollTop % this.nodeHeight)
+      if (scrollTop < 0) { scrollTop = 0 }
       // 全部的显示的节点的高度
-      const visibleNodes = this.allNodesArr.filter(item => item._visible === true)
+      const visibleNodes = allNodesArr.filter(item => item._visible === true)
       const visibleNodesHeight = visibleNodes.length * this.nodeHeight
 
       let temp = visibleNodesHeight - this.containerHeight
@@ -343,7 +648,6 @@ export default {
       this.calculateMargin(scrollTop)
 
       const beginIndex = Number((scrollTop / this.nodeHeight).toFixed(0))
-      // this.oldBeginIndex = beginIndex
       this.reSetTreeNodes(beginIndex)
     },
 
@@ -354,13 +658,13 @@ export default {
     reSetTreeNodes (beginIndex) {
       let temp = 0
       const arr = []
-      for (let i = 0, length = this.allNodesArr.length; i < length; i++) {
-        const item = this.allNodesArr[i]
+      for (let i = 0, length = allNodesArr.length; i < length; i++) {
+        const item = allNodesArr[i]
         if (item._visible) {
           temp++
         }
         if (temp >= beginIndex && item._visible) {
-          arr.push(this.allNodesArr[i])
+          arr.push(allNodesArr[i])
           if (arr.length > this.visibleAmount) {
             break
           }
@@ -373,12 +677,12 @@ export default {
      * 收起并隐藏节点，以及子节点
      */
     hideNodes (arr) {
-      const { children } = this.fullConfig.replaceFields
       arr.forEach(item => {
         item._visible = false
         item._expanded = false
-        if (item[children] && item[children].length > 0) {
-          this.hideNodes(item[children])
+        const tempArr = item[this._children]
+        if (tempArr && tempArr.length > 0) {
+          this.hideNodes(tempArr)
         }
       })
     },
@@ -389,7 +693,9 @@ export default {
      * @param checkState {String} checked 勾选/ halfChecked 半选/ 空字符串 未勾选
      */
     checkChildrenNodes (arr, checkState) {
-      const { children: _children } = this.fullConfig.replaceFields
+      if (!arr || arr.length < 0) {
+        return false
+      }
       arr.forEach(item => {
         const checkFlag = this.Y.includes('children') && ['halfChecked', 'checked'].includes(checkState)
         const uncheckFlag = this.N.includes('children') && checkState === ''
@@ -397,7 +703,9 @@ export default {
           item._checkState = checkState
         }
 
-        item[_children] && item[_children].length > 0 && this.checkChildrenNodes(item[_children], checkState)
+        const tempArr = item[this._children]
+
+        tempArr && tempArr.length > 0 && this.checkChildrenNodes(tempArr, checkState)
       })
     },
 
@@ -410,14 +718,10 @@ export default {
         _parentId
       } = currentNode
 
-      const {
-        children: _children
-      } = this.fullConfig.replaceFields
-
       // 获取父节点
       if (!_parentId) return
-      const parentNode = this.allNodesObj[_parentId]
-      const children = parentNode[_children]
+      const parentNode = allNodesObj[_parentId]
+      const children = parentNode[this._children]
 
       let isSomeNodeChecked = false // 所有子节点中，是不是有一个节点是勾选状态
       let isSomeNodeUnchecked = false // 所有子节点中，是不是有一个节点是未勾选状态
@@ -446,12 +750,9 @@ export default {
      * 节点勾选/取消勾选
      */
     nodeCheck (node) {
-      const {
-        id: _id,
-        children: _children
-      } = this.fullConfig.replaceFields
-      const _checkState = node._checkState || ''
+      if (!node) return
 
+      const _checkState = node._checkState || ''
       let checkState
       // 勾选状态，点击，变为未勾选状态
       // 半勾选状态，点击，变为勾选状态
@@ -465,7 +766,7 @@ export default {
       node._checkState = checkState
 
       if (this.Y.includes('children') || this.N.includes('children')) {
-        this.checkChildrenNodes(node[_children], checkState)
+        this.checkChildrenNodes(node[this._children], checkState)
       }
 
       if (this.Y.includes('parent') || this.N.includes('parent')) {
@@ -475,41 +776,33 @@ export default {
       this.$forceUpdate()
 
       const checked = checkState === 'checked'
-      const checkedNodes = this.allNodesArr.filter(item => {
+      const checkedNodes = allNodesArr.filter(item => {
         return ['checked', 'halfChecked'].includes(item._checkState)
       })
-      const checkedKeys = checkedNodes.map(item => item[_id])
-      const originalNodes = checkedKeys.map(item => this.originalDataObj[item])
-      const originalNode = this.originalDataObj[node[_id]]
+      const checkedKeys = checkedNodes.map(item => item[this._id])
+      const originalNodes = checkedKeys.map(item => allNodesObj[item])
+      const originalNode = allNodesObj[node[this._id]]
 
-      this.$emit('nodeCheck', checkedKeys, { checked, checkedNodes: originalNodes, node: originalNode })
+      this.$emit('check', checkedKeys, { checked, checkedNodes: originalNodes, node: originalNode })
     },
 
     /**
      * 节点展开/收起
+     * @param node {Object} 要操作的节点
+     * @param expanded {Boolean} 节点操作后的展开状态。无该参数时切换节点的展开/收起状态
      */
-    nodeExpand (node) {
-      const {
-        replaceFields: {
-          id: _id,
-          children: _children
-        },
-        asyncNeeded,
-        asyncCallback
-      } = this.fullConfig
-
+    nodeExpand (event, node, expanded) {
       // 异步请求，新增的节点添加到节点信息中
-      if (asyncNeeded && !node.hasAsync) {
+      // TODO 新增数据后清空缓存的搜索数据
+      if (this.async && !node.hasAsync) {
         node._ajaxing = true
         this.$forceUpdate()
 
-        asyncCallback(node).then(data => {
-          this.addNewDataToOriginal(data, node[_id])
-
+        this.loadData(node).then(data => {
           // 处理新增的值
           const level = node._level + 1
           const visible = true
-          const parentId = node[_id]
+          const parentId = node[this._id]
           const checkState = node.checkState === 'checked' ? 'checked' : ''
           const expanded = false
 
@@ -520,16 +813,16 @@ export default {
             item._checkState = checkState
             item._expanded = expanded
 
-            const id = item[_id]
-            this.allNodesObj[id] = item
+            const id = item[this._id]
+            allNodesObj[id] = item
           })
 
           this.bodyMarginBottom += data.length * this.nodeHeight
 
-          const index = this.allNodesArr.findIndex(item => item[_id] === node[_id])
-          this.allNodesArr.splice(index + 1, 0, ...data) // TODO 这个操作可能耗时
+          const index = allNodesArr.findIndex(item => item[this._id] === node[this._id])
+          allNodesArr.splice(index + 1, 0, ...data) // TODO 这个操作可能耗时
 
-          const i = this.treeNodes.findIndex(item => item[_id] === node[_id])
+          const i = this.treeNodes.findIndex(item => item[this._id] === node[this._id])
 
           this.treeNodes.splice(i + 1, 0, ...data)
           this.treeNodes.length = this.visibleAmount
@@ -537,12 +830,12 @@ export default {
           node._ajaxing = false
           node._expanded = true
           node.hasAsync = true
-          node[_children] = data
+          node[this._children] = data
 
           this.$forceUpdate()
 
-          const originalNode = this.originalDataObj[node[_id]]
-          this.$emit('nodeExpandAsync', node[_id], originalNode)
+          const originalNode = allNodesObj[node[this._id]]
+          this.$emit('load', node[this._id], originalNode)
         }).catch(e => {
           node._ajaxing = false
           console.error(e)
@@ -551,8 +844,14 @@ export default {
       }
 
       const isExpanded = !!node._expanded
-      const id = node[_id]
-      const children = this.allNodesObj[id][_children]
+      const id = node[this._id]
+      const children = allNodesObj[id][this._children]
+
+      if (expanded !== undefined) {
+        if (expanded === isExpanded) {
+          return false
+        }
+      }
 
       // 展开当前节点
       if (!isExpanded) {
@@ -568,24 +867,17 @@ export default {
       const beginIndex = this.bodyMarginTop / this.nodeHeight
       this.reSetTreeNodes(beginIndex)
 
-      const originalNode = this.originalDataObj[node[_id]]
-      this.$emit('nodeExpand', node[_id], { expanded: node._expanded, node: originalNode })
+      if (expanded === undefined) {
+        const originalNode = allNodesObj[node[this._id]]
+        this.$emit('expand', node[this._id], { expanded: node._expanded, node: originalNode })
+      }
     },
 
     /**
      * 节点选中
      */
     nodeClick (node, event) {
-      const {
-        enableSelect,
-        // enableMultiSelect,
-        replaceFields: {
-          id: _id
-          // children: _children
-        }
-      } = this.fullConfig
-
-      if (!enableSelect) {
+      if (!this.selectable) {
         return false
       }
 
@@ -599,27 +891,105 @@ export default {
       node._selected = selected
 
       this.$forceUpdate()
-      const originalNode = this.originalDataObj[node[_id]]
-      this.$emit('nodeSelect', node[_id], { selected, node: originalNode })
+      const originalNode = allNodesObj[node[this._id]]
+      this.$emit('select', node[this._id], { selected, node: originalNode })
     },
 
-    createNode (node, h) {
-      const {
-        replaceFields: { name, children: _children },
-        checkable,
-        asyncNeeded,
-        enableSelect
-      } = this.fullConfig
+    /**
+     * 生成节点的图标
+     */
+    createIcon (node, h) {
+      const { enableOrgTreeIcon } = this.fullConfig
+      const { dwType } = node
+      if (enableOrgTreeIcon && dwType) {
+        let iconName = 'icon-'
+        if (dwType + '' === '1') {
+          iconName += 'jianzhu'
+        } else if (dwType + '' === 'A') {
+          iconName += 'danwei'
+        } else if (dwType + '' === '2') {
+          iconName += 'bumen'
+        }
+        return h(
+          'div',
+          {
+            class: [iconName]
+          }
+        )
+      }
+      return node.iconSlotName && this.$slots[node.iconSlotName]
+    },
 
-      const showSwitcher = (node[_children] && node[_children].length > 0) || (asyncNeeded && !node.isLeafnode)
+    createOperateList (node, h) {
+      const configList = this.fullConfig.operateList
+      if (!configList || configList.length === 0) {
+        return null
+      }
+
+      const operateList = node.operateList
+      let resultList = []
+      if (Array.isArray(operateList)) {
+        resultList = configList.filter(item => {
+          return operateList.includes(item.type)
+        })
+      } else if (!operateList) {
+        resultList = configList
+      }
+
+      if (resultList.length === 0) {
+        return null
+      }
+
       return h(
-        'div', {
+        'span',
+        {
+          class: ['vxe-tree-node-operate'],
+          on: {
+            mouseover: e => this.recalculateListPosition(e, node)
+          }
+        },
+        [
+          h(
+            'ul',
+            {
+              class: ['vxe-tree-node-operate-list']
+            },
+            [...this.createOperateListItems(resultList, node, h)]
+          )
+        ]
+      )
+    },
+
+    createOperateListItems (arr, node, h) {
+      return arr.map(item => {
+        return h(
+          'li',
+          {
+            class: ['vxe-tree-node-operate-list-item'],
+            on: {
+              click: e => item.callback(node)
+            }
+          },
+          item.name
+        )
+      })
+    },
+
+    /**
+     * 生成树节点
+     * @param node {Object} 节点信息
+     */
+    createNode (node, h) {
+      const showSwitcher = (node[this._children] && node[this._children].length > 0) || (this.async && !node.isLeaf)
+      return h(
+        'div',
+        {
           on: {
           },
           class: 'vxe-tree-node',
           style: {
             'padding-left': (node._level * 20 + 10) + 'px',
-            height: '30px'
+            height: `${this.nodeHeight}px`
           }
         },
         [
@@ -631,12 +1001,12 @@ export default {
                 node._expanded ? 'expanded' : ''
               ],
               on: {
-                click: (e) => this.nodeExpand(node, e)
+                click: (e) => this.nodeExpand(e, node)
               }
             },
             []
           ),
-          checkable && h(
+          this.checkable && h(
             'div',
             {
               class: [
@@ -648,7 +1018,7 @@ export default {
               }
             }
           ),
-          node.iconSlotName && this.$slots[node.iconSlotName],
+          this.createIcon(node, h),
           h(
             'span',
             {
@@ -657,17 +1027,25 @@ export default {
                 node._selected ? 'selected' : ''
               ],
               style: {
-                cursor: enableSelect ? 'pointer' : 'default'
+                cursor: this.selectable ? 'pointer' : 'default'
               },
               on: {
                 click: e => this.nodeClick(node, e)
+              },
+              attrs: {
+                title: this.title(node)
               }
             },
-            node[name]
-          )
+            node[this._name]
+          ),
+          this.createOperateList(node, h)
         ]
       )
     },
+
+    /**
+     * 生成可以看到的树的全部节点
+     */
     createNodes (arr, h) {
       const resultArr = arr.map(item => {
         return this.createNode(item, h)
@@ -675,34 +1053,34 @@ export default {
       return [...resultArr]
     }
   },
+
   render (h) {
     if (!this.treeData || this.treeData.length === 0) {
       return h(
         'div',
-        {
-
-        },
-        '没有数据'
+        {},
+        '暂无数据'
       )
     }
-    return h(
-      'div', {
-        class: ['vxe-tree'],
-        // attrs: {
-        //   id: `${this.treeId}`,
-        // },
-        style: {
-          // border: '1px solid red',
-          height: '100%'
-        }
 
+    return h(
+      'div',
+      {
+        class: ['vxe-tree'],
+        style: {
+          height: '100%'
+        },
+        on: {
+          click: e => this.eventTreeClick(e)
+        }
       },
       [
+        this.enableSearch && this.createSearchBox(h),
         h(
           'div', {
             class: ['vxe-tree-content'],
             style: {
-              height: '100%',
+              height: `${this.containerHeight}px`,
               overflow: 'auto'
             },
             on: {
@@ -716,8 +1094,7 @@ export default {
                 style: {
                   height: '100%',
                   'margin-top': `${this.bodyMarginTop}px`,
-                  'margin-bottom': `${this.bodyMarginBottom}px`,
-                  border: '1px solid green'
+                  'margin-bottom': `${this.bodyMarginBottom}px`
                 }
               },
               [this.createNodes(this.treeNodes, h)]
@@ -727,4 +1104,5 @@ export default {
       ]
     )
   }
+
 }
